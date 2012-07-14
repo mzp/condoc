@@ -40,11 +40,13 @@ object InlineParser extends RegexParsers with Util{
       Comment(str)
     }
 
-  def inline = qed | inlineCode | comment | text
-  def inlines = rep(inline) map { format(_) map {
-    case Text(s) => Text(s.trim)
-    case x => x
-  }}
+  def inline =
+    qed | inlineCode | comment | text
+  def inlines =
+    rep(inline) map { format(_) map {
+      case Text(s) => Text(s.trim)
+      case x => x
+    } }
 
   def format(xs : List[Inline]) : List[Inline] = {
     xs match {
@@ -118,7 +120,10 @@ object BlockParser extends RegexParsers with Util {
   def block : Parser[Block] = head | ul | blockCode | verbatim | paragraph | blank
 
   def blocks : Parser[List[Element]] = rep(block) ^^ {case xs =>
-    format(xs)
+    format(xs) filter {
+      case Paragraph(List()) => false
+      case _ => true
+    }
   }
 
   def parse(str : String) = {
@@ -129,6 +134,7 @@ object BlockParser extends RegexParsers with Util {
 object CoqdocParser extends RegexParsers with Util {
   override def skipWhitespace= false
 
+  // parsing nested comment
   def nest(start : String, end : String, n : Int) : Parser[String] = Parser { case input =>
     var level = n
     val anyStr = any ^^ { case c => c.toString }

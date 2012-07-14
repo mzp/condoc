@@ -1,8 +1,8 @@
 package org.proofcafe.coqdoc
 
 object Coqdoc {
-  def markdowns(elements : List[{ def toMarkdown : String}]) =
-    elements.map{ _.toMarkdown }.mkString("")
+  def markdowns(elements : List[{ def toMarkdown : String}], sep : String = "") =
+    elements.map{ _.toMarkdown }.mkString(sep)
 
   def indent(str : String) =
     str.lines.map("    " + _).mkString("\n")
@@ -17,7 +17,7 @@ abstract class Coqdoc {
 
 case class Doc(elements : List[Element]) extends Coqdoc {
   def toMarkdown =
-    Coqdoc.markdowns(elements)
+    Coqdoc.markdowns(elements, "\n\n")
 }
 
 case class Code(code : String) extends Coqdoc {
@@ -70,7 +70,7 @@ case class Ul(xs : List[Li]) extends Block {
 }
 
 case class Li(elements : List[Inline]) {
-  def toMarkdown = " * %s".format(Coqdoc.markdowns(elements))
+  def toMarkdown = " * %s\n".format(Coqdoc.markdowns(elements))
 }
 
 case class Verbatim(text : String) extends Block {
