@@ -69,9 +69,6 @@ object BlockParser extends RegexParsers with Util {
 
   override def skipWhitespace= false
 
-  def ul : Parser[Ul] =
-    rep1(li) ^^ { xs => Ul(xs) }
-
   def head : Parser[Head] =
     """ *\*""".r ~> rep("*") ~ until("\n") ^^ { case mark~title =>
       Head(mark.length+1, InlineParser.parse(title))
@@ -90,13 +87,26 @@ object BlockParser extends RegexParsers with Util {
   def oneline =
     ".*".r
 
-  def li : Parser[Li] =
-    "^ *- *".r ~> oneline <~ opt("\n") ^^ { case str =>
-      Li(InlineParser.parse(str))
+  var listLevel = 0
+  var listCount = 0
+
+  def listItem : Parser[ListItem] =
+    "^ *- *".r ~ oneline <~ opt("\n") ^^ { case header ~ str =>
+      val n = header.takeWhile(' ' == _).length
+      if(listCount < n) {
+        listLevel += 1
+        listCount = n
+      } else if(n < listCount) {
+        listLevel -= 1
+        listCount = n
+      }
+      ListItem(listLevel, InlineParser.parse(str))
     }
 
   def paragraph : Parser[Paragraph] =
     ".+".r <~ opt("\n") ^^ { case line =>
+      listLevel = 0
+      listCount = 0
       Paragraph(InlineParser.parse(line.trim))
     }
 
@@ -117,7 +127,7 @@ object BlockParser extends RegexParsers with Util {
     }
   }
 
-  def block : Parser[Block] = head | ul | blockCode | verbatim | paragraph | blank
+  def block : Parser[Block] = head | listItem | blockCode | verbatim | paragraph | blank
 
   def blocks : Parser[List[Element]] = rep(block) ^^ {case xs =>
     format(xs) filter {

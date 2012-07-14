@@ -64,13 +64,9 @@ case class Head(level : Int, title : List[Inline]) extends Block {
   }
 }
 
-case class Ul(xs : List[Li]) extends Block {
+case class ListItem(level : Int, xs : List[Inline]) extends Block {
   def toMarkdown =
-    Coqdoc.markdowns(xs)
-}
-
-case class Li(elements : List[Inline]) {
-  def toMarkdown = " * %s\n".format(Coqdoc.markdowns(elements))
+    "%s* %s".format(" " * (3 * level - 2), Coqdoc.markdowns(xs))
 }
 
 case class Verbatim(text : String) extends Block {
