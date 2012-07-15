@@ -42,6 +42,7 @@ object InlineParser extends RegexParsers with Util{
 
   def inline =
     qed | inlineCode | comment | text
+
   def inlines =
     rep(inline) map { format(_) map {
       case Text(s) => Text(s.trim)
@@ -75,12 +76,12 @@ object BlockParser extends RegexParsers with Util {
     }
 
   def blockCode : Parser[BlockCode] =
-    "[[" ~> until("]]") <~ "]]" ^^ { case code =>
+    """ *\[\[""".r ~> until("]]") <~ "]]" ^^ { case code =>
       BlockCode(code)
     }
 
   def verbatim : Parser[Verbatim] =
-    "<<" ~> until(">>") <~ ">>" ^^ { case text =>
+    " *<<".r ~> until(">>") <~ ">>" ^^ { case text =>
       Verbatim(text)
     }
 
