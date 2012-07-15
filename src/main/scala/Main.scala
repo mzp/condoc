@@ -21,6 +21,7 @@ object Main {
               for(doc <- docs) {
                 w.write(doc.toString+"\n")
                 println(doc.toMarkdown)
+                println("")
               }
           } } } }
   }
