@@ -44,7 +44,8 @@ object InlineParser extends RegexParsers with Util{
     qed | inlineCode | comment | text
 
   def inlines =
-    rep(inline) map { format(_) map {
+    rep(inline) map { xs =>
+      format(xs) map {
       case Text(s) => Text(s.trim)
       case x => x
     } }
@@ -88,31 +89,35 @@ object BlockParser extends RegexParsers with Util {
   def oneline =
     ".*".r
 
-  var listLevel = 0
-  var listCount = 0
+  var listIndent = 0
 
-  def listItem : Parser[ListItem] =
-    "^ *- *".r ~ oneline <~ opt("\n") ^^ { case header ~ str =>
-      val n = header.takeWhile(' ' == _).length
-      if(listCount < n) {
-        listLevel += 1
-        listCount = n
-      } else if(n < listCount) {
-        listLevel -= 1
-        listCount = n
-      }
-      ListItem(listLevel, InlineParser.parse(str))
+  def listMarker =
+    "^ *- *".r ^^ { case mark =>
+      val n = mark.takeWhile(' ' == _).length
+      listIndent =  n
+      mark
+  }
+
+  def ul : Parser[Ul] =
+    listMarker ~ oneline ~ opt("\n") ~ rep(indentedLine) ^^ { case header ~ str ~ _ ~ xs =>
+      val text = str + xs.mkString("\n")
+      val blocks = parse(text)
+      Ul(List(ListItem(blocks)))
     }
+
+  def indentedLine : Parser[String] = Parser { input =>
+    val indent = " " * (listIndent + 1)
+    var parser = (indent ~> oneline <~ opt("\n")) | blank ^^ { _ => "" }
+    parser(input)
+  }
 
   def paragraph : Parser[Paragraph] =
     ".+".r <~ opt("\n") ^^ { case line =>
-      listLevel = 0
-      listCount = 0
       Paragraph(InlineParser.parse(line.trim))
     }
 
   def blank = "\n" ^^ { _ =>
-    Paragraph(List())
+    Blank
   }
 
   def format(xs : List[Block]) : List[Block] = {
@@ -122,22 +127,25 @@ object BlockParser extends RegexParsers with Util {
       case List(x) =>
         List(x)
       case Paragraph(x) :: Paragraph(y) :: ys =>
-        format(Paragraph(x ++ y) :: ys)
+        format(Paragraph(InlineParser.format(x ++ y)) :: ys)
+      case Ul(x) :: Ul(y) :: ys =>
+        format(Ul(x ++ y) :: ys)
       case x :: ys =>
         x :: format(ys)
     }
   }
 
-  def block : Parser[Block] = head | listItem | blockCode | verbatim | paragraph | blank
+  def block : Parser[Block] = head | ul | blockCode | verbatim | paragraph | blank
 
-  def blocks : Parser[List[Element]] = rep(block) ^^ {case xs =>
+  def blocks : Parser[List[Block]] = rep(block) ^^ {case xs =>
     format(xs) filter {
       case Paragraph(List()) => false
+      case Blank => false
       case _ => true
     }
   }
 
-  def parse(str : String) = {
+  def parse(str : String) : List[Block] = {
     parseWith(blocks)(str)
   }
 }
@@ -186,18 +194,28 @@ object CoqdocParser extends RegexParsers with Util {
       Code(s.trim)
     }
 
-  def format(xs : List[Coqdoc]) =
-    xs filter { doc =>
+  def format(xs : List[Coqdoc]) : List[Coqdoc] =
+    xs match {
+      case List() =>
+        List()
+      case List(x) =>
+        List(x)
+      case Doc(x) :: Doc(y) :: ys =>
+        format(Doc(x ++ y) :: ys)
+      case Code(x) :: Code(y) :: ys =>
+        format(Code(x ++ y) :: ys)
+      case x :: ys =>
+        x :: format(ys)
+    }
+
+  def coqdoc : Parser[List[Coqdoc]] =
+    rep(doc | code) ^^ { xs => format(xs filter { doc =>
       doc match {
         case Code(x) =>
           ! x.trim.isEmpty
         case _ =>
           true
-      }
-    }
-
-  def coqdoc : Parser[List[Coqdoc]] =
-    rep(doc | code) ^^ { format(_) }
+      } }) }
 
   def parse(str : String) =
     parseWith(coqdoc)(str)

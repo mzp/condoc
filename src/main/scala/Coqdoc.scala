@@ -4,8 +4,8 @@ object Coqdoc {
   def markdowns(elements : List[{ def toMarkdown : String}], sep : String = "") =
     elements.map{ _.toMarkdown }.mkString(sep)
 
-  def indent(str : String) =
-    str.lines.map("    " + _).mkString("\n")
+  def indent(str : String, count : Int = 4) =
+    str.lines.map((" " * count) + _).mkString("\n")
 }
 
 /*******************************
@@ -15,9 +15,9 @@ abstract class Coqdoc {
   def toMarkdown : String
 }
 
-case class Doc(elements : List[Element]) extends Coqdoc {
+case class Doc(elements : List[Block]) extends Coqdoc {
   def toMarkdown =
-    Coqdoc.markdowns(elements, "\n\n")
+    Coqdoc.markdowns(elements,"\n\n")
 }
 
 case class Code(code : String) extends Coqdoc {
@@ -31,7 +31,11 @@ case class Code(code : String) extends Coqdoc {
 abstract class Element {
   def toMarkdown : String
 }
-abstract class Block  extends Element
+abstract class Block  extends Element {
+  def markdown : String
+  def toMarkdown =
+    markdown
+}
 abstract class Inline extends Element
 
 /*
@@ -41,7 +45,7 @@ abstract class Inline extends Element
  *
  */
 case class BlockCode(value : String) extends Block {
-  def toMarkdown =
+  def markdown =
     Coqdoc.indent(value)
 }
 
@@ -53,7 +57,7 @@ object Head {
 }
 
 case class Head(level : Int, title : List[Inline]) extends Block {
-  def toMarkdown = {
+  def markdown = {
     val n = if(Head.first) {
       Head.first = false
       level
@@ -64,18 +68,38 @@ case class Head(level : Int, title : List[Inline]) extends Block {
   }
 }
 
-case class ListItem(level : Int, xs : List[Inline]) extends Block {
-  def toMarkdown =
-    "%s* %s".format(" " * (3 * level - 2), Coqdoc.markdowns(xs))
+case class Ul(xs : List[ListItem]) extends Block {
+    def markdown = {
+      val isInline = xs.forall { x =>
+        x match {
+          case ListItem(List(Paragraph(_))) => true
+          case _ => false
+        }
+      }
+      val sep = if(isInline) "\n" else "\n\n"
+      "\n" + Coqdoc.markdowns(xs,sep)
+    }
+}
+
+case class ListItem(xs : List[Block]) extends Block {
+  def markdown = {
+    val text = Coqdoc.indent(Coqdoc.markdowns(xs, "\n"), 3).trim
+    " * %s".format(text)
+  }
 }
 
 case class Verbatim(text : String) extends Block {
-  def toMarkdown =
+  def markdown =
     Coqdoc.indent(text)
 }
 
 case class Paragraph(elements : List[Inline]) extends Block {
-  def toMarkdown = Coqdoc.markdowns(elements)
+  def markdown = Coqdoc.markdowns(elements)
+}
+
+case object Blank extends Block {
+  override def toMarkdown = ""
+  def markdown = ""
 }
 
 // comment

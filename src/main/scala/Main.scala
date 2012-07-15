@@ -20,7 +20,7 @@ object Main {
             case CoqdocParser.Success(docs,_) =>
               for(doc <- docs) {
                 w.write(doc.toString+"\n")
-                println(doc.toMarkdown+"\n")
+                println(doc.toMarkdown)
               }
           } } } }
   }
