@@ -1,7 +1,7 @@
 package org.proofcafe.coqdoc
 import scala.util.parsing.combinator._
 
-trait Util extends RegexParsers {
+trait ParserUtil extends RegexParsers {
   def any : Parser[Char] =
     elem("any", { c =>
       c.toInt != 26
@@ -22,7 +22,7 @@ trait Util extends RegexParsers {
   }
 }
 
-object InlineParser extends RegexParsers with Util{
+object InlineParser extends RegexParsers with ParserUtil {
   override def skipWhitespace= false
 
   def qed : Parser[Inline] =
@@ -67,7 +67,7 @@ object InlineParser extends RegexParsers with Util{
     parseWith(inlines)(str)
 }
 
-object BlockParser extends RegexParsers with Util {
+object BlockParser extends RegexParsers with ParserUtil {
 
   override def skipWhitespace= false
 
@@ -150,7 +150,7 @@ object BlockParser extends RegexParsers with Util {
   }
 }
 
-object CoqdocParser extends RegexParsers with Util {
+object CoqdocParser extends RegexParsers with ParserUtil {
   override def skipWhitespace= false
 
   // parsing nested comment
@@ -185,8 +185,8 @@ object CoqdocParser extends RegexParsers with Util {
   def code : Parser[Code] =
     until("(**") ^^ { case str =>
       // hack for FILL IN HERE
-      val s = """(?s)\(\*(.*)\*\)""".r.replaceAllIn(str, { m =>
-        if(m.group(1) == "FILL IN HERE")
+      val s = """(?s)\(\*(.*?)\*\)""".r.replaceAllIn(str, { m =>
+        if( Util.isFillInHere(m.group(1)) )
           "(* FILL IN HERE *)"
         else
           ""

@@ -21,8 +21,9 @@ case class Doc(elements : List[Block]) extends Coqdoc {
 }
 
 case class Code(code : String) extends Coqdoc {
-  def toMarkdown =
+  def toMarkdown = {
     Coqdoc.indent(code)
+  }
 }
 
 /*******************************
@@ -105,11 +106,13 @@ case object Blank extends Block {
 // comment
 case class Comment(value : String) extends Inline {
   // output only if ""FILL IN HERE"
-  def toMarkdown =
-    if(value.trim == "FILL IN HERE")
+  def toMarkdown = {
+    println(value)
+    if(Util.isFillInHere(value))
       "(* %s *)".format(value)
     else
       ""
+  }
 }
 
 // [code]
